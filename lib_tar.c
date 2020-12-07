@@ -1,4 +1,20 @@
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 #include "lib_tar.h"
+
+//faut looper dans l'autre sens
+
+unsigned int baseEightToTen(char *a) {
+	unsigned int retVal = a[0];
+	int val = 8;
+	for(int i = 1; i < 8; i++) {
+		retVal = retVal + (a[i] * val); 
+		val = val * 8;
+	}
+	return retVal;
+}
 
 /**
  * Checks whether the archive is valid.
@@ -16,6 +32,39 @@
  *         -3 if the archive contains a header with an invalid checksum value
  */
 int check_archive(int tar_fd) {
+	char *buf = malloc(512*sizeof(char));
+	read(tar_fd, (void *) buf, 512);
+	for(int i = 0; i < 512; i++) {
+	printf("%c", buf[i]); 
+	}
+	printf("\n");
+	for(int i = 0; i < 6; i++) {
+		if(buf[257+i] != TMAGIC[i]) return -1;
+	}
+	for(int i = 0; i < 2; i++) {
+		if(buf[263+i] != TVERSION[i]) return -2;
+	}
+	unsigned int checksum = 0;
+	int space = (int) ' ';
+	for(int i = 0; i < 512; i++) {
+		
+		if(i >= 148 && i < 156) {
+			checksum = checksum + space;
+		}
+		else checksum = checksum + buf[i]; 
+	}
+	printf("computed checksum : %d\n", checksum);
+	char readchecksum[9];
+	for(int i = 0; i < 8; i++) {
+		printf("%d ", buf[148+i]);
+		readchecksum[i] = buf[148+i];
+	}
+	readchecksum[8] = '\0';
+	printf("\n");
+	printf("string : %s\n", readchecksum);
+	unsigned int chsm = baseEightToTen(readchecksum);
+	printf("chsm : %d\n", chsm);
+	if(checksum != chsm) return -3;
     return 0;
 }
 
