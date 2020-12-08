@@ -7,10 +7,12 @@
 //faut looper dans l'autre sens
 
 unsigned int baseEightToTen(char *a) {
-	unsigned int retVal = a[0];
+	int size = 0;
+	while(a[size] != '\0') size++;
+	unsigned int retVal = a[size - 1] - 48;
 	int val = 8;
-	for(int i = 1; i < 8; i++) {
-		retVal = retVal + (a[i] * val); 
+	for(int i = size - 2; i >= 0; i--) {
+		retVal = retVal + ((a[i] - 48) * val); 
 		val = val * 8;
 	}
 	return retVal;
@@ -32,40 +34,60 @@ unsigned int baseEightToTen(char *a) {
  *         -3 if the archive contains a header with an invalid checksum value
  */
 int check_archive(int tar_fd) {
-	char *buf = malloc(512*sizeof(char));
+
+	int number_of_headers = 0;
+	char buf[512];
+	
 	read(tar_fd, (void *) buf, 512);
-	for(int i = 0; i < 512; i++) {
-	printf("%c", buf[i]); 
-	}
-	printf("\n");
-	for(int i = 0; i < 6; i++) {
-		if(buf[257+i] != TMAGIC[i]) return -1;
-	}
-	for(int i = 0; i < 2; i++) {
-		if(buf[263+i] != TVERSION[i]) return -2;
-	}
-	unsigned int checksum = 0;
-	int space = (int) ' ';
-	for(int i = 0; i < 512; i++) {
+	
+	while(buf[0] != '\0') {
 		
-		if(i >= 148 && i < 156) {
-			checksum = checksum + space;
+		number_of_headers++;
+		
+		for(int i = 0; i < 6; i++) {
+			if(buf[257+i] != TMAGIC[i]) return -1;
 		}
-		else checksum = checksum + buf[i]; 
+		
+		for(int i = 0; i < 2; i++) {
+			if(buf[263+i] != TVERSION[i]) return -2;
+		}
+	
+		//computing checksum
+		unsigned int computed_checksum = 0;
+		int space = (int) ' ';
+		for(int i = 0; i < 512; i++) {
+			
+			if(i >= 148 && i < 156) {
+				computed_checksum = computed_checksum + space;
+			}
+			else computed_checksum = computed_checksum + buf[i]; 
+		}
+		
+		//reading checksum
+		char readchecksum[9];
+		for(int i = 0; i < 8; i++) {
+			readchecksum[i] = buf[148+i];
+		}
+		readchecksum[8] = '\0';
+			
+		//comparing checksums
+		unsigned int rchsm = baseEightToTen(readchecksum);
+		if(computed_checksum != rchsm) return -3;
+		
+		char size[13];
+		for(int i = 0; i < 12; i++) {
+			size[i] = buf[124 + i];
+		}
+		size[12] = '\0';
+		int s = baseEightToTen(size);
+		if(s != 0) {
+			int skip = (s - (s%512)) / 512;
+			if(s%512 != 0) skip++;
+			lseek(tar_fd, 512 * skip, SEEK_CUR); 
+		}
+		read(tar_fd, (void *) buf, 512);
 	}
-	printf("computed checksum : %d\n", checksum);
-	char readchecksum[9];
-	for(int i = 0; i < 8; i++) {
-		printf("%d ", buf[148+i]);
-		readchecksum[i] = buf[148+i];
-	}
-	readchecksum[8] = '\0';
-	printf("\n");
-	printf("string : %s\n", readchecksum);
-	unsigned int chsm = baseEightToTen(readchecksum);
-	printf("chsm : %d\n", chsm);
-	if(checksum != chsm) return -3;
-    return 0;
+	return number_of_headers;
 }
 
 /**
