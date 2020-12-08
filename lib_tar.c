@@ -74,6 +74,7 @@ int check_archive(int tar_fd) {
 		unsigned int rchsm = baseEightToTen(readchecksum);
 		if(computed_checksum != rchsm) return -3;
 		
+		//skipping to next header block
 		char size[13];
 		for(int i = 0; i < 12; i++) {
 			size[i] = buf[124 + i];
@@ -113,7 +114,36 @@ int exists(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int is_dir(int tar_fd, char *path) {
-    return 0;
+
+	char buf[512];
+	read(tar_fd, (void *) buf, 512);
+	
+	while(buf[0] != '\0') {
+		if(buf[156] == '5') {			
+			int i = 0;
+			int same_name = 1;
+			while(path[i] != '\0') {
+				if(path[i] != buf[i]) same_name = 0;
+				i++;
+			}
+			if(buf[i] != '\0') same_name = 0;
+			if(same_name == 1) return 1;
+		}
+		
+		char size[13];
+		for(int i = 0; i < 12; i++) {
+			size[i] = buf[124 + i];
+		}
+		size[12] = '\0';
+		int s = baseEightToTen(size);
+		if(s != 0) {
+			int skip = (s - (s%512)) / 512;
+			if(s%512 != 0) skip++;
+			lseek(tar_fd, 512 * skip, SEEK_CUR); 
+		}
+		read(tar_fd, (void *) buf, 512);
+	}
+	return 0;
 }
 
 /**
@@ -126,7 +156,36 @@ int is_dir(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int is_file(int tar_fd, char *path) {
-    return 0;
+	
+	char buf[512];
+	read(tar_fd, (void *) buf, 512);
+	
+	while(buf[0] != '\0') {
+		if(buf[156] == '0' || buf[156] == '\0') {			
+			int i = 0;
+			int same_name = 1;
+			while(path[i] != '\0') {
+				if(path[i] != buf[i]) same_name = 0;
+				i++;
+			}
+			if(buf[i] != '\0') same_name = 0;
+			if(same_name == 1) return 1;
+		}
+		
+		char size[13];
+		for(int i = 0; i < 12; i++) {
+			size[i] = buf[124 + i];
+		}
+		size[12] = '\0';
+		int s = baseEightToTen(size);
+		if(s != 0) {
+			int skip = (s - (s%512)) / 512;
+			if(s%512 != 0) skip++;
+			lseek(tar_fd, 512 * skip, SEEK_CUR); 
+		}
+		read(tar_fd, (void *) buf, 512);
+	}
+	return 0;
 }
 
 /**
@@ -138,7 +197,36 @@ int is_file(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int is_symlink(int tar_fd, char *path) {
-    return 0;
+    
+    char buf[512];
+	read(tar_fd, (void *) buf, 512);
+	
+	while(buf[0] != '\0') {
+		if(buf[156] == '2') {			
+			int i = 0;
+			int same_name = 1;
+			while(path[i] != '\0') {
+				if(path[i] != buf[i]) same_name = 0;
+				i++;
+			}
+			if(buf[i] != '\0') same_name = 0;
+			if(same_name == 1) return 1;
+		}
+		
+		char size[13];
+		for(int i = 0; i < 12; i++) {
+			size[i] = buf[124 + i];
+		}
+		size[12] = '\0';
+		int s = baseEightToTen(size);
+		if(s != 0) {
+			int skip = (s - (s%512)) / 512;
+			if(s%512 != 0) skip++;
+			lseek(tar_fd, 512 * skip, SEEK_CUR); 
+		}
+		read(tar_fd, (void *) buf, 512);
+	}
+	return 0;
 }
 
 
