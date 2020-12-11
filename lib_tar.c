@@ -101,6 +101,33 @@ int check_archive(int tar_fd) {
  *         any other value otherwise.
  */
 int exists(int tar_fd, char *path) {
+    char buf[512];
+        read(tar_fd, (void *) buf, 512);
+        
+        while (buf[0] != '\0') {
+            int i = 0;
+            int name = 1;
+            while(path[i] != '\0'){
+                if(path[i] != buf[i]) name = 0;
+                    i++;
+                }
+                if(buf[i] != '\0') name = 0;
+                if(name == 1) return 1;
+
+            char size[13];
+            for(int i = 0; i < 12; i++) {
+                size[i] = buf[124 + i];
+            }
+            size[12] = '\0';
+            int s = baseEightToTen(size);
+            if(s != 0) {
+                int skip = (s - (s%512)) / 512;
+                if(s%512 != 0) skip++;
+                lseek(tar_fd, 512 * skip, SEEK_CUR);
+            }
+            read(tar_fd, (void *) buf, 512);
+        }
+        
     return 0;
 }
 
