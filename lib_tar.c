@@ -257,6 +257,48 @@ int is_symlink(int tar_fd, char *path) {
 }
 
 
+int check_and_point(int tar_fd, char *path){
+    if(is_dir(tar_fd, path) == 1) {
+        lseek(tar_fd, -512, SEEK_CUR);
+        return 1;
+    }
+    
+    lseek(tar_fd, 0, SEEK_SET);
+    if(is_symlink(tar_fd, path) == 1) {
+        lseek(tar_fd, -512, SEEK_CUR);
+        char buf[512];
+        read(tar_fd, (void *) buf, 512);
+        int count_slash = 0;
+        int i = 0;
+        while(buf[i] != '\0') {
+            if(buf[i] == '/') count_slash++;
+            i++;
+            
+        }
+        char link_to[100];
+        i = 0;
+        while(count_slash > 0) {
+            link_to[i] = buf[i];
+            if(buf[i] == '/') count_slash--;
+            i++;
+        }
+        int j = 0;
+        while(buf[157 + j] != '\0' && j < 100) {
+            link_to[i] = buf[157 + j];
+            i++;
+            j++;
+        }
+        char final_path[i + 1];
+        for(int k = 0; k < i; k++) {
+            final_path[k] = link_to[k];
+        }
+        final_path[i] = '\0';
+        lseek(tar_fd, 0, SEEK_SET);
+        return point_to_beginning(tar_fd, final_path);
+    }
+    return 0;
+}
+
 /**
  * Lists the entries at a given path in the archive.
  *
@@ -271,7 +313,37 @@ int is_symlink(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
-    return 0;
+    
+    if(check_and_point(tar_fd, path) == 0) return 0;
+    
+    char buf[512];
+    int fileCount = 0;
+    
+    lseek(tar_fd, 512, SEEK_CUR);
+    read(tar_fd, (void *) buf, 512);
+    
+    while(buf[0] != '\0' || fileCount < (*no_entries)){
+        fileCount++;
+        int i = 0;
+        while(buf[i] != '\0' && i < 100) {
+            entries[fileCount][i] = buf[i];
+            i++;
+        }
+        char size[13];
+        for(int i = 0; i < 12; i++) {
+            size[i] = buf[124 + i];
+        }
+        size[12] = '\0';
+        int s = baseEightToTen(size);
+        if(s != 0) {
+            int skip = (s - (s%512)) / 512;
+            if(s%512 != 0) skip++;
+            lseek(tar_fd, 512 * skip, SEEK_CUR);
+        }
+        read(tar_fd, (void *) buf, 512);
+    }
+    (*no_entries) = fileCount;
+    return fileCount;
 }
 
 /**
