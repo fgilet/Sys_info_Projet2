@@ -30,14 +30,24 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    int fd = open(argv[1] , O_RDONLY);
+    int fd = open("archive.tar" , O_RDONLY);
     if (fd == -1) {
         perror("open(tar_file)");
         return -1;
     }
     
-    int ret = is_file(fd, argv[2]);
-    printf("is_file returned %d\n", ret);
+    
+    uint8_t dest[3421];
+    size_t len = 3421;
+    
+    
+    int ret = read_file(fd, argv[1], 3400, dest, &len);
+    for(int i = 0; i < 3421; i++) {
+    	printf("%c", dest[i]);
+    }
+    printf("\n");
+    printf("%ld\n", len);
+    printf("read_file returned %d\n", ret);
 
     return 0;
 }

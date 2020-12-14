@@ -346,6 +346,48 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
     return fileCount;
 }
 
+int point_to_beginning(int tar_fd, char *path) {
+	if(is_file(tar_fd, path) == 1) {
+		lseek(tar_fd, -512, SEEK_CUR);
+		return 0;
+	}
+	
+	lseek(tar_fd, 0, SEEK_SET);
+	if(is_symlink(tar_fd, path) == 1) {
+		lseek(tar_fd, -512, SEEK_CUR);
+		char buf[512];
+		read(tar_fd, (void *) buf, 512);
+		int count_slash = 0;
+		int i = 0;
+		while(buf[i] != '\0') {
+			if(buf[i] == '/') count_slash++;
+			i++;
+			
+		}
+		char link_to[100];
+		i = 0;
+		while(count_slash > 0) {
+			link_to[i] = buf[i];
+			if(buf[i] == '/') count_slash--;
+			i++;
+		}
+		int j = 0;
+		while(buf[157 + j] != '\0' && j < 100) {
+			link_to[i] = buf[157 + j];
+			i++;
+			j++;
+		}
+		char final_path[i + 1];
+		for(int k = 0; k < i; k++) {
+			final_path[k] = link_to[k];
+		}
+		final_path[i] = '\0';
+		lseek(tar_fd, 0, SEEK_SET);
+		return point_to_beginning(tar_fd, final_path);
+	}
+	return -1;
+}
+
 /**
  * Reads a file at a given path in the archive.
  *
@@ -364,5 +406,42 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
  *
  */
 ssize_t read_file(int tar_fd, char *path, size_t offset, uint8_t *dest, size_t *len) {
-    return 0;
+
+	if(point_to_beginning(tar_fd, path) == -1) return -1;
+	char buf[512];
+	read(tar_fd, (void *) buf, 512);	
+	
+	char size[13];
+	for(int i = 0; i < 12; i++) {
+		size[i] = buf[124 + i];
+	}
+	size[12] = '\0';
+	int length = baseEightToTen(size) - offset; 
+	if(length < 0) return -2;
+	
+	
+	lseek(tar_fd, offset, SEEK_CUR);
+	read(tar_fd, (void *) buf, 512);
+	
+	
+	int dest_size = *len;
+	*len = 0;
+	int i = 0;
+	int k = 0;
+	
+	
+	while(buf[i] != '\0' && k < dest_size && k < length) {
+		dest[k] = buf[i];
+		(*len)++;
+		k++;
+		i++;
+		if(i >= 512) {
+			i = 0;
+			read(tar_fd, (void *) buf, 512);
+		}
+	}
+	
+	return length - k;
 }
+
+
