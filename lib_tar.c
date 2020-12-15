@@ -318,17 +318,17 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
     
     char buf[512];
     int fileCount = 0;
-    
-    lseek(tar_fd, 512, SEEK_CUR);
     read(tar_fd, (void *) buf, 512);
     
-    while(buf[0] != '\0' || fileCount < (*no_entries)){
+    while(buf[0] != '\0' ){
         fileCount++;
         int i = 0;
+        char name[100];
         while(buf[i] != '\0' && i < 100) {
-            entries[fileCount][i] = buf[i];
+            name[i] = buf[i];
             i++;
         }
+        entries[fileCount] = name;
         char size[13];
         for(int i = 0; i < 12; i++) {
             size[i] = buf[124 + i];
@@ -343,7 +343,7 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
         read(tar_fd, (void *) buf, 512);
     }
     (*no_entries) = fileCount;
-    return fileCount;
+    return 1;
 }
 
 int point_to_beginning(int tar_fd, char *path) {
