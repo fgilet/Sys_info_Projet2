@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include "lib_tar.h"
 
-//faut looper dans l'autre sens
 
 unsigned int baseEightToTen(char *a) {
 	int size = 0;
@@ -156,7 +156,6 @@ int is_dir(int tar_fd, char *path) {
 			if(buf[i] != '\0') same_name = 0;
 			if(same_name == 1) return 1;
 		}
-		
 		char size[13];
 		for(int i = 0; i < 12; i++) {
 			size[i] = buf[124 + i];
@@ -166,7 +165,7 @@ int is_dir(int tar_fd, char *path) {
 		if(s != 0) {
 			int skip = (s - (s%512)) / 512;
 			if(s%512 != 0) skip++;
-			lseek(tar_fd, 512 * skip, SEEK_CUR); 
+			lseek(tar_fd, 512 * skip, SEEK_CUR);
 		}
 		read(tar_fd, (void *) buf, 512);
 	}
@@ -294,9 +293,112 @@ int check_and_point(int tar_fd, char *path){
         }
         final_path[i] = '\0';
         lseek(tar_fd, 0, SEEK_SET);
-        return point_to_beginning(tar_fd, final_path);
+        return check_and_point(tar_fd, final_path);
     }
     return 0;
+}
+
+
+//return the index on which the name of the file (excluding folder name) starts
+int getDirIndex(char *path) {
+
+	int count_slash = 0;
+	int i = 0;
+
+	while(path[i] != '\0') {
+		if(path[i] == '/') count_slash++;
+		i++;
+	}
+	
+	i = 0;
+	while(count_slash > 0) {
+		if(path[i] == '/') count_slash--;
+		i++;
+	}
+	return i;
+}
+
+int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
+
+	char buf[512];
+
+	if(is_symlink(tar_fd, path) == 1) {
+	
+		//TO DO
+	
+		/*lseek(tar_fd, -512, SEEK_CUR);
+		read(tar_fd, (void *) buf, 512);
+		lseek(tar_fd, 0, SEEK_SET);
+		char new_path[100];
+		for(int i = 157; buf[i] != '\0'; i++) {
+			printf("buf[%d] : %c\n", i, buf[i]);
+			new_path[i] = buf[i];
+		}
+		printf("new_path : %s\n", new_path);
+		return list(tar_fd, new_path, entries, no_entries);*/
+	}
+
+	if(is_dir(tar_fd, path) == 0) {
+		(*no_entries) = 0;
+		return 0;
+	}
+	
+	char name[100];
+	read(tar_fd, (void *) buf, 512);
+	int written = 0;
+	
+	while(buf[0] != '\0' && *no_entries > written) {
+	
+		for(int i = 0; i < 100; i++) {
+			name[i] = buf[i];
+		}
+		
+		//printf("name : %s\n", name);
+		
+		int index = getDirIndex(name);
+		char folder[100];
+		
+		for(int i = 0; i < 100; i++) {
+			if(i < index) folder[i] = name[i];
+			else folder[i] = '\0';
+		}
+		
+		//printf("folder : %s\n", folder);
+		
+		char lastName[100];
+		
+		for(int i = index; i < 100 + index; i++) {
+			if(i < 100 - index) lastName[i - index] = name[i];
+			else lastName[i - index] = '\0';
+		}
+		
+		//printf("lastName : %s\n", lastName);
+		
+		//printf("%s == %s : %d",folder, path, strcmp(folder, path));
+		
+		if(strcmp(folder, path) == 0 && name[index] != '\0') {
+			strcpy(entries[written], lastName);
+			written++;
+		}
+	
+		
+	
+		char size[13];
+        	for(int i = 0; i < 12; i++) {
+            	size[i] = buf[124 + i];
+       	 }
+       	 size[12] = '\0';
+       	 int s = baseEightToTen(size);
+       	 if(s != 0) {
+          	 	int skip = (s - (s%512)) / 512;
+         	 	if(s%512 != 0) skip++;
+         	 	lseek(tar_fd, 512 * skip, SEEK_CUR);
+        	}
+        	read(tar_fd, (void *) buf, 512);
+		
+	}
+	(*no_entries) = written;
+	return 1;
 }
 
 /**
@@ -312,23 +414,28 @@ int check_and_point(int tar_fd, char *path){
  * @return zero if no directory at the given path exists in the archive,
  *         any other value otherwise.
  */
-int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
+int list2(int tar_fd, char *path, char **entries, size_t *no_entries) {
     
     if(check_and_point(tar_fd, path) == 0) return 0;
     
     char buf[512];
     int fileCount = 0;
     
-    lseek(tar_fd, 512, SEEK_CUR);
+    //lseek(tar_fd, 512, SEEK_CUR);
     read(tar_fd, (void *) buf, 512);
+    printf("%ld\n", *no_entries);
     
-    while(buf[0] != '\0' || fileCount < (*no_entries)){
+    while(buf[0] != '\0' && fileCount < (*no_entries)){
+    
         fileCount++;
         int i = 0;
+        char temp[100];
         while(buf[i] != '\0' && i < 100) {
-            entries[fileCount][i] = buf[i];
-            i++;
+            	//entries[fileCount][i] = buf[i];
+            	temp[i] = buf[i];
+            	i++;
         }
+        entries[fileCount] = temp;
         char size[13];
         for(int i = 0; i < 12; i++) {
             size[i] = buf[124 + i];

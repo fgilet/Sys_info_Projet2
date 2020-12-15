@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -37,17 +38,22 @@ int main(int argc, char **argv) {
     }
     
     
-    uint8_t dest[3421];
-    size_t len = 3421;
-    
-    
-    int ret = read_file(fd, argv[1], 3400, dest, &len);
-    for(int i = 0; i < 3421; i++) {
-    	printf("%c", dest[i]);
+    size_t no_entries = 5;
+    char **entries;
+    entries = (char **) malloc(sizeof(char *) * no_entries);
+    for(int i = 0; i < no_entries; i++) {
+    	entries[i] = (char *) malloc(sizeof(char) * 100);
     }
-    printf("\n");
-    printf("%ld\n", len);
-    printf("read_file returned %d\n", ret);
+    
+        
+    
+    int ret = list(fd, argv[1], entries, &no_entries);
+    printf("returned from list\n");
+    for(int i = 0; i < no_entries; i++) {
+    	if(ret != 0) printf("%s\n", entries[i]);
+    }
+    printf("no_entries : %ld\n", no_entries);
+    printf("list returned %d\n", ret);
 
     return 0;
 }
